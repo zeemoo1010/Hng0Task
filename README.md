@@ -1,48 +1,83 @@
-# Hng0Task — Project Summary
+# Hng0Task
 
-Short description
-- Minimal ASP.NET Core Web API (Target: .NET 9, C# 13) that exposes a single endpoint `/me` and returns a `Profile` JSON object.
-- `Profile` is built from static user info and a cat fact fetched from `https://catfact.ninja/fact`.
+Minimal ASP.NET Core Web API (Target: .NET 9, C# 13) that exposes a single endpoint to return a user `Profile` assembled from static user data and a cat fact fetched from `https://catfact.ninja/fact`.
 
-Flow (concise)
-1. Client sends GET /me.
-2. `ProfileController` handles the request and calls `ProfileService.GetProfileAsync()`.
-3. `ProfileService` performs an HTTP GET to the external API, extracts the `fact` value (or uses a fallback).
-4. `ProfileService` constructs a `Profile` (Status, User, Timestamp, Fact).
-5. Controller returns `200 OK` with the `Profile` serialized to JSON.
+## Project at a glance
+- Target framework: `.NET 9`
+- Language version: `C# 13`
+- Pattern: Controller -> Service -> External HTTP API
+- Single public endpoint: `GET /me`
 
-Key files
-- `Program.cs` — registers controllers, configures middleware (`UseHttpsRedirection`, `UseAuthorization`, `MapControllers`).
-- `Controllers/ProfileController.cs` — GET `/me` endpoint.
-- `Service/ProfileService.cs` — fetches the cat fact and builds the `Profile`.
-- `Entity/Profile.cs` — model definition for the returned JSON.
-- `Dockerfile` — containerization (present in repo root).
+## Repository layout
+- `Program.cs` â€” application bootstrap, service registration and middleware (`UseHttpsRedirection`, `UseAuthorization`, `MapControllers`).
+- `Controllers/ProfileController.cs` â€” defines the `GET /me` endpoint and returns a `Profile`.
+- `Service/ProfileService.cs` â€” fetches an external cat fact and builds the `Profile` model.
+- `Entity/Profile.cs` â€” `Profile` model (properties: `Status`, `User`, `Timestamp`, `Fact`).
+- `appsettings.json` â€” configuration (API URLs, timeouts, etc. â€” present in workspace).
+- `Dockerfile` â€” containerization instructions (root).
+- `README.md` â€” this file.
 
-Run locally
-- .NET CLI:
-  - From project folder: `dotnet run`
-- Visual Studio:
-  - Open the solution and use __Debug > Start Debugging__ or __Debug > Start Without Debugging__.
+## High-level flow
 
-Example request
-- curl:
+## How it works (step-by-step)
+1. Client calls `GET /me`.
+2. `ProfileController.GetProfile()` invokes `ProfileService.GetProfileAsync()`.
+3. `ProfileService` performs an HTTP GET to `https://catfact.ninja/fact`. If successful it reads the `fact` field; otherwise a fallback message is used.
+4. A `Profile` object is created:
+   - `Status` = `"success"`
+   - `User` = hard-coded contact info (`Email`, `Name`, `Stack`)
+   - `Timestamp` = UTC timestamp in ISO format
+   - `Fact` = fetched cat fact (or fallback)
+5. Controller returns `200 OK` with the serialized JSON `Profile`.
+
+## Run locally
+
+Using .NET CLI
+- From project folder:
+  - `dotnet run`
+- The console will show the listening URL (eg `https://localhost:5001`).
+
+Using Visual Studio
+- Open the solution and run via __Debug > Start Debugging__ or __Debug > Start Without Debugging__.
+
+Test the endpoint
+- Example:
   - `curl -s https://localhost:5001/me`
-- Example response (trimmed):
-  - {
-      "status":"success",
-      "user":{ "email":"ismailagboola130@gmail.com", "name":"Ibrahim Ismail", "stack":"C#/ASP.NET Core" },
-      "timestamp":"2025-10-19T12:34:56.789Z",
-      "fact":"A cat fact..."
-    }
+- Sample response:
 
-Quick notes & recommended improvements
+## Docker
+- Build: `docker build -t hng0task .`
+- Run: `docker run -p 5000:80 -e ASPNETCORE_ENVIRONMENT=Production hng0task`
+
+(Adjust ports and environment variables to match your `Program.cs` and container port configuration.)
+
+## Configuration
+- Keep external API URLs, timeouts, and other settings in `appsettings.json` (or environment variables) rather than hard-coding in `ProfileService`.
+
+## Shortcomings & recommended improvements
 - Current issues:
-  - `ProfileController` creates `ProfileService` with `new` instead of using DI.
-  - `ProfileService` creates a raw `HttpClient` (risk of socket exhaustion).
+- `ProfileController` constructs `ProfileService` with `new` instead of using DI.
+- `ProfileService` instantiates `HttpClient` directly (risk of socket exhaustion).
 - Recommendations:
-  - Register `ProfileService` in DI and inject it in the controller (use `builder.Services.AddScoped<IProfileService, ProfileService>()` or `AddHttpClient<ProfileService>()`).
-  - Use `IHttpClientFactory` (via `AddHttpClient`) for `HttpClient` instances.
-  - Add `ILogger<T>`, configuration for external API URL/timeouts, and better error handling.
-  - Add unit tests for `ProfileService` by mocking HTTP calls.
+- Introduce an interface (`IProfileService`) and register service in DI:
+  - `builder.Services.AddScoped<IProfileService, ProfileService>();`
+- Use `IHttpClientFactory`:
+  - `builder.Services.AddHttpClient<ProfileService>();`
+- Add `ILogger<T>` to services for structured logging.
+- Move external API URL to configuration (`appsettings.json`) and use typed options.
+- Add unit tests for `ProfileService` (mock `HttpMessageHandler`) and controller tests (use `WebApplicationFactory<T>`).
+- Add health checks if used in production.
 
-This summary is intentionally concise; if a more detailed README (with examples, badges, API contract, or CI instructions) is required, a longer version can be generated.
+## Contributing
+- Open a branch per feature: `git checkout -b feat/your-feature`
+- Create PR to branch `Zeemo` (current repo branch).
+- Add unit tests for behaviour change.
+
+## License & Contact
+- See repository root for license (if present).
+- Maintainer email (from code): `ismailagboola130@gmail.com`
+
+If you want, I can:
+- Refactor the project to use DI and `IHttpClientFactory`.
+- Add unit tests and a health-check endpoint.
+- 
