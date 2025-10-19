@@ -15,9 +15,9 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 // Disable HTTPS redirect (since Pxxl handles HTTPS)
+ // app.UseHttpsRedirection();
+
 app.UseAuthorization();
 app.MapControllers();
 
-// ? Allow Pxxl to assign the port dynamically
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Run($"http://0.0.0.0:{port}");
+app.Run();
